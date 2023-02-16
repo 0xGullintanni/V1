@@ -36,4 +36,17 @@ contract ERC20Test is Test {
         assertEq(token.totalSupply(), token.balanceOf(alice));
         assertEq(token.totalSupply(), 0);
     }
+
+    function testTransferToken() public {
+        token._mint(alice, 100);
+        assertEq(token.totalSupply(), token.balanceOf(alice));
+        assertEq(token.totalSupply(), 100);
+
+        vm.prank(alice);
+        token.transfer(bob, 100);
+        assertEq(token.totalSupply(), token.balanceOf(bob));
+        assertEq(token.totalSupply(), 100);
+        assertEq(token.balanceOf(bob), 100);
+         assertEq(token.balanceOf(alice), 0);
+    }
 }
