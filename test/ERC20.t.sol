@@ -19,20 +19,16 @@ contract ERC is ERC20 {
 }
 
 contract ERC20Test is Test {
-    ERC20 internal token;
     ERC internal erc;
 
     address internal alice = vm.addr(0x1);
     address internal bob = vm.addr(0x2);
 
     function setUp() public virtual {
-        token = new ERC20("Test", "TST");
         erc = new ERC("Tester", "TEST");
     }
 
     function testSetUp() external {
-        assertEq("Test", token.name());
-        assertEq("TST", token.symbol());
         assertEq("Tester", erc.name());
         assertEq("TEST", erc.symbol());
     }
