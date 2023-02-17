@@ -6,47 +6,81 @@ import { stdStorage, StdStorage, Test } from "forge-std/Test.sol";
 
 import { ERC20 } from "../src/ERC20.sol";
 
+contract ERC is ERC20 {
+    constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) {}
+
+    function mint(address account, uint256 amount) public {
+        super._mint(account, amount);
+    }
+
+    function burn(address account, uint256 amount) public {
+        super._burn(account, amount);
+    }
+}
+
 contract ERC20Test is Test {
     ERC20 internal token;
+    ERC internal erc;
 
     address internal alice = vm.addr(0x1);
     address internal bob = vm.addr(0x2);
 
     function setUp() public virtual {
         token = new ERC20("Test", "TST");
+        erc = new ERC("Tester", "TEST");
     }
 
     function testSetUp() external {
         assertEq("Test", token.name());
         assertEq("TST", token.symbol());
+        assertEq("Tester", erc.name());
+        assertEq("TEST", erc.symbol());
     }
 
     function testMint() public {
-        token._mint(alice, 100);
-        assertEq(100, token.balanceOf(alice));
-        assertEq(token.totalSupply(), token.balanceOf(alice));
+        erc.mint(alice, 100);
+        assertEq(100, erc.balanceOf(alice));
+        assertEq(erc.totalSupply(), erc.balanceOf(alice));
     }   
 
+    
     function testBurn() public {
-        token._mint(alice, 100);
-        assertEq(token.totalSupply(), token.balanceOf(alice));
-        assertEq(token.totalSupply(), 100);
+        erc.mint(alice, 100);
+        assertEq(erc.totalSupply(), erc.balanceOf(alice));
+        assertEq(erc.totalSupply(), 100);
 
-        token.burn(alice, 100);
-        assertEq(token.totalSupply(), token.balanceOf(alice));
-        assertEq(token.totalSupply(), 0);
+        erc.burn(alice, 100);
+        assertEq(erc.totalSupply(), erc.balanceOf(alice));
+        assertEq(erc.totalSupply(), 0);
     }
-
+    
     function testTransferToken() public {
-        token._mint(alice, 100);
-        assertEq(token.totalSupply(), token.balanceOf(alice));
-        assertEq(token.totalSupply(), 100);
+        erc.mint(alice, 100);
+        assertEq(erc.totalSupply(), erc.balanceOf(alice));
+        assertEq(erc.totalSupply(), 100);
 
         vm.prank(alice);
-        token.transfer(bob, 100);
-        assertEq(token.totalSupply(), token.balanceOf(bob));
-        assertEq(token.totalSupply(), 100);
-        assertEq(token.balanceOf(bob), 100);
-         assertEq(token.balanceOf(alice), 0);
+        erc.transfer(bob, 100);
+        assertEq(erc.totalSupply(), erc.balanceOf(bob));
+        assertEq(erc.totalSupply(), 100);
+        assertEq(erc.balanceOf(bob), 100);
+         assertEq(erc.balanceOf(alice), 0);
+    }
+
+    function testTransferFromToken() public {
+        erc.mint(alice, 100);
+        assertEq(erc.totalSupply(), erc.balanceOf(alice));
+        assertEq(erc.totalSupply(), 100);
+
+        vm.prank(alice);
+        erc.approve(bob, 100);
+        assertEq(erc.allowance(alice, bob), 100);
+
+        vm.prank(bob);
+        erc.transferFrom(alice, bob, 100);
+        assertEq(erc.totalSupply(), erc.balanceOf(bob));
+        assertEq(erc.totalSupply(), 100);
+        assertEq(erc.balanceOf(bob), 100);
+        assertEq(erc.balanceOf(alice), 0);
     }
 }
