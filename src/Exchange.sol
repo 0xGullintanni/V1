@@ -28,6 +28,7 @@ contract Exchange is ERC20 {
        require(ethSold > 0, "Eth sold must be greater than 0");
        uint outputReserve = getReserves();
 
+
        return getAmount(ethSold, address(this).balance - ethSold, outputReserve);
    }
 
@@ -72,21 +73,6 @@ contract Exchange is ERC20 {
         uint256 numerator = inputAmountWithFee * outputReserve;
         uint256 denominator = (inputReserve * 1000) + inputAmountWithFee;
 
-        /*
-         Example 1 ETH swap for a pool with 1 ETH and 1000 DAI
-         =====================================================
-         We would expect to get back 50% of the pool, or 500 DAI; however, fee is taken which will truncate return to 499.
-         inputAmount = 1 ETH = 1 * 10^18 
-         inputReserve = 1 ETH = 1 * 10^18
-         outputReserve = 1000 DAI = 1000 
-         getAmount(1 ether, 1 ether, 1000)
-
-         inputAmountWithFee = 1 * 10^18 * 997 = 997 * 10^18
-         numerator = 997 * 10^18 * 1000 = 997 * 10^21
-         denominator = (1 * 10^18 * 1000) + 997*10^18 = 1 * 10^21 + 997 * 10^18 
-
-         numerator / denominator => (997 * 10^21) / (10^21 + 997 * 10^18)
-        */
        return numerator / denominator; // Solidity truncates uint256 towards 0
    }
 
