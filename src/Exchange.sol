@@ -151,7 +151,7 @@ contract Exchange is ERC20 {
             bool success = token.transferFrom(msg.sender, address(this), tokensAdded);
             require(success, "Transfer failed");
 
-            IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokensAdded);
+            _mint(msg.sender, liquidity);
             return liquidity;
         }
     }
@@ -165,8 +165,9 @@ contract Exchange is ERC20 {
         // Invariant maintenance => y / x = dy / dx
         require((getReserves() / address(this).balance) == ((getReserves() + tokenAmt) / (address(this).balance + ethAmount)), "Invariant must be maintained");
         _burn(msg.sender, tokenAmount);
+        
         payable(msg.sender).transfer(ethAmount);
-        IERC20(tokenAddress).transfer(msg.sender, tokenAmount);
+        IERC20(tokenAddress).transfer(msg.sender, tokenAmt);
 
         return (ethAmount, tokenAmount);
     }
