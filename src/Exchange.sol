@@ -5,30 +5,20 @@ pragma solidity ^0.8.0;
 
 import './ERC20.sol';
 import './IERC20.sol';
+import './IFactory.sol';
+import './IExchange.sol';
 
 contract Exchange is ERC20 {
     address immutable tokenAddress;
-    /* The exchange needs to:
-      1. swapEthForToken
-      2. swapTokenForEth 
-      3. addLiquidity
-      4. removeLiquidity
-    
-      To maintain our invariant x * y = k, we need to keep track of the ETH balance
-      of the Exchange contract and the token balance of the Exchange contract. 
-
-      In order to add liquidity, we need to first know if a pool exists for the token,
-        - If it does not exist, we need to accept the ETH and the token  
-        - If it does exist, we need to determine how much of their token balance can be supplied
-          to contract based on msg.value.
-    */
+    address immutable factoryAddress;
 
    constructor(address _tokenAddress) ERC20("UNI-V1", "UNI-V1") {
         require(_tokenAddress != address(0), "Token address cannot be 0x0");
+        require(msg.sender != address(0), "Factory address cannot be 0x0");
         tokenAddress = _tokenAddress;
+        factoryAddress = msg.sender;
    }
 
-   // We will use this function in order to grab the token balance of the Exchange contract
    function getReserves() public view returns (uint256) {
         return IERC20(tokenAddress).balanceOf(address(this));
    }
@@ -37,18 +27,16 @@ contract Exchange is ERC20 {
        // return the amount of tokens to be expected for a given swap
        require(ethSold > 0, "Eth sold must be greater than 0");
        uint outputReserve = getReserves();
-       require(outputReserve > 0, "Reserves must be greater than 0");
 
        return getAmount(ethSold, address(this).balance - ethSold, outputReserve);
    }
 
    function getEthAmount(uint tokensSold) public view returns (uint256) {
-        // return the amount of tokens to be expected for a given swap
+       // return the amount of ETH to be expected for a given swap
        require(tokensSold > 0, "Tokens sold must be greater than 0"); 
        uint inputReserve = getReserves();
-       require(inputReserve > 0, "Reserves must be greater than 0");
 
-       return getAmount(tokensSold, inputReserve, address(this).balance);
+       return getAmount(tokensSold, inputReserve - tokensSold, address(this).balance);
    }
 
    function getAmount(uint inputAmount, uint inputReserve, uint outputReserve) public pure returns (uint256) {
@@ -102,7 +90,7 @@ contract Exchange is ERC20 {
        return numerator / denominator; // Solidity truncates uint256 towards 0
    }
 
-    function ethForTokenSwap(uint minTokens) public payable {
+    function ethForTokenSwap(uint minTokens) public payable returns (uint) {
         require(msg.value > 0, "Must send ETH to swap for tokens");
 
 
@@ -110,9 +98,11 @@ contract Exchange is ERC20 {
         require(tokenAmount > minTokens, "Token amount must be greater than minTokens");
 
         IERC20(tokenAddress).transfer(msg.sender, tokenAmount);
+
+        return tokenAmount;
     }
 
-    function tokenForEthSwap(uint tokensSold, uint minEth) public {
+    function tokenForEthSwap(uint tokensSold, uint minEth) public returns(uint) {
         require(tokensSold > 0, "Must send tokens to swap for ETH");
 
         uint ethAmount = getEthAmount(tokensSold);
@@ -120,6 +110,27 @@ contract Exchange is ERC20 {
 
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokensSold);
         payable(msg.sender).transfer(ethAmount);
+
+        return ethAmount;
+    }
+
+    function tokenForTokenSwap(uint tokensSold, uint minTokens, address targetToken) public returns(uint) {
+        require(tokensSold > 0, "Must send tokens to swap for tokens");
+        require(targetToken != address(0) && targetToken != address(this), "Target token address cannot be 0x0");
+
+        // Swap for ETH first
+        uint ethSwapped = getEthAmount(tokensSold);
+
+        // Swap eth for target token
+        address exchangeDesired = IFactory(factoryAddress).getExchangeForToken(targetToken);
+        uint tokensAcq = IExchange(exchangeDesired).getTokenAmount(ethSwapped);
+
+        require(tokensAcq > minTokens, "Token amount must be greater than minTokens");
+            
+        IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokensSold);
+        IExchange(exchangeDesired).ethForTokenSwap{ value: ethSwapped }(tokensAcq);
+
+        return tokensAcq; 
     }
 
     function addLiquidity(uint tokensAdded) public payable returns (uint256) {
@@ -136,8 +147,7 @@ contract Exchange is ERC20 {
             IERC20 token = IERC20(tokenAddress);
             uint liquidity = address(this).balance; // for payable functions, contract balance is updated before function is called
             require(token.balanceOf(msg.sender) >= tokensAdded, "Sender must have enough tokens to add liquidity");
-            bool success = token.transferFrom(msg.sender, address(this), tokensAdded);
-            require(success, "Transfer failed");
+            token.transferFrom(msg.sender, address(this), tokensAdded);
             _mint(msg.sender, liquidity);
 
             return liquidity;
@@ -148,8 +158,7 @@ contract Exchange is ERC20 {
             uint liquidity = (msg.value * totalSupply()) / (ethBalance - msg.value);
             require(liquidity >= tokensAdded, "Token amount must be less than liquidity sent back to user as LP tokens.");
             require(token.balanceOf(msg.sender) >= tokensAdded, "Sender must have enough tokens to add liquidity");
-            bool success = token.transferFrom(msg.sender, address(this), tokensAdded);
-            require(success, "Transfer failed");
+            token.transferFrom(msg.sender, address(this), tokensAdded);
 
             _mint(msg.sender, liquidity);
             return liquidity;

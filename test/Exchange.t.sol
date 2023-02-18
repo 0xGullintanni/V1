@@ -107,7 +107,6 @@ contract ExchangeTest is Test {
         assertEq(token.allowance(alice, address(exchange)), 50);
         assertEq(token.allowance(bob, address(exchange)), 50);
 
-        
         vm.prank(alice);
         exchange.addLiquidity{ value: 1 ether}(10);
 
@@ -135,4 +134,43 @@ contract ExchangeTest is Test {
         assertEq(alice.balance, 10 ether);
         assertEq(token.balanceOf(alice), 50);
     }
+
+    function testTokenForEthSwap() public {
+        token.transfer(alice, 50);
+        token.transfer(bob, 50);
+
+        assertEq(token.balanceOf(alice), 50);
+        assertEq(token.balanceOf(bob), 50);
+        
+        vm.prank(alice);
+        token.approve(address(exchange), 50);
+        vm.prank(bob);
+        token.approve(address(exchange), 50);
+
+        assertEq(token.allowance(alice, address(exchange)), 50);
+        assertEq(token.allowance(bob, address(exchange)), 50);
+
+        vm.prank(alice);
+        exchange.addLiquidity{ value: 1 ether}(10);
+
+        assertEq(alice.balance, 9 ether);
+        assertEq(address(exchange).balance, 1 ether);
+        assertEq(exchange.getReserves(), 10);
+        assertEq(exchange.balanceOf(alice), 1 ether);
+        assertEq(exchange.totalSupply(), 1 ether);
+
+        vm.prank(bob);
+        exchange.tokenForEthSwap(5, .5 ether);
+
+        assertEq(bob.balance, 10 ether);
+    }
+
+    function testEthForTokenSwap() public {
+
+    }
+
+    function testTokenForTokenSwap() public {
+
+    }
+
 }
