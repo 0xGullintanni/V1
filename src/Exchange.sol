@@ -7,6 +7,7 @@ import './ERC20.sol';
 import './IERC20.sol';
 import './IFactory.sol';
 import './IExchange.sol';
+import { console } from "forge-std/console.sol";
 
 contract Exchange is ERC20 {
     address immutable tokenAddress;
@@ -27,7 +28,6 @@ contract Exchange is ERC20 {
        // return the amount of tokens to be expected for a given swap
        require(ethSold > 0, "Eth sold must be greater than 0");
        uint outputReserve = getReserves();
-
 
        return getAmount(ethSold, address(this).balance - ethSold, outputReserve);
    }
@@ -77,11 +77,8 @@ contract Exchange is ERC20 {
    }
 
     function ethForTokenSwap(uint minTokens) public payable returns (uint) {
-        require(msg.value > 0, "Must send ETH to swap for tokens");
-
-
         uint tokenAmount = getTokenAmount(msg.value);
-        require(tokenAmount > minTokens, "Token amount must be greater than minTokens");
+        require(tokenAmount >= minTokens, "Token amount must be greater than minTokens");
 
         IERC20(tokenAddress).transfer(msg.sender, tokenAmount);
 
@@ -89,10 +86,8 @@ contract Exchange is ERC20 {
     }
 
     function tokenForEthSwap(uint tokensSold, uint minEth) public returns(uint) {
-        require(tokensSold > 0, "Must send tokens to swap for ETH");
-
         uint ethAmount = getEthAmount(tokensSold);
-        require(ethAmount > minEth, "Eth amount must be greater than minEth");
+        require(ethAmount >= minEth, "Eth amount must be greater than minEth");
 
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokensSold);
         payable(msg.sender).transfer(ethAmount);
@@ -101,15 +96,17 @@ contract Exchange is ERC20 {
     }
 
     function tokenForTokenSwap(uint tokensSold, uint minTokens, address targetToken) public returns(uint) {
-        require(tokensSold > 0, "Must send tokens to swap for tokens");
-        require(targetToken != address(0) && targetToken != address(this), "Target token address cannot be 0x0");
+        address exchangeDesired = IFactory(factoryAddress).getExchangeForToken(targetToken);
+        require(exchangeDesired != address(0) && exchangeDesired != address(this), "Target token address cannot be 0x0");
+        console.log('exchangeDesired: %s', exchangeDesired);
 
         // Swap for ETH first
         uint ethSwapped = getEthAmount(tokensSold);
+        console.log('ethSwapped: %s', ethSwapped);
 
         // Swap eth for target token
-        address exchangeDesired = IFactory(factoryAddress).getExchangeForToken(targetToken);
         uint tokensAcq = IExchange(exchangeDesired).getTokenAmount(ethSwapped);
+        console.log('tokensAcq: %s', tokensAcq);
 
         require(tokensAcq > minTokens, "Token amount must be greater than minTokens");
             
