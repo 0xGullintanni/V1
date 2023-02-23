@@ -28,7 +28,9 @@ contract Exchange is ERC20 {
        // return the amount of tokens to be expected for a given swap
        require(ethSold > 0, "Eth sold must be greater than 0");
        uint outputReserve = getReserves();
-
+       console.log('ethSold: %s', ethSold);
+       console.log('address(this).balance: %s', address(this).balance);
+       console.log('address(this).balance - ethSold: %s', address(this).balance - ethSold);
        return getAmount(ethSold, address(this).balance - ethSold, outputReserve);
    }
 
@@ -76,11 +78,11 @@ contract Exchange is ERC20 {
        return numerator / denominator; // Solidity truncates uint256 towards 0
    }
 
-    function ethForTokenSwap(uint minTokens) public payable returns (uint) {
+    function ethForTokenTransfer(uint minTokens, address recipient) public payable returns (uint) {
         uint tokenAmount = getTokenAmount(msg.value);
         require(tokenAmount >= minTokens, "Token amount must be greater than minTokens");
 
-        IERC20(tokenAddress).transfer(msg.sender, tokenAmount);
+        IERC20(tokenAddress).transfer(recipient, tokenAmount);
 
         return tokenAmount;
     }
@@ -97,21 +99,17 @@ contract Exchange is ERC20 {
 
     function tokenForTokenSwap(uint tokensSold, uint minTokens, address targetToken) public returns(uint) {
         address exchangeDesired = IFactory(factoryAddress).getExchangeForToken(targetToken);
-        require(exchangeDesired != address(0) && exchangeDesired != address(this), "Target token address cannot be 0x0");
-        console.log('exchangeDesired: %s', exchangeDesired);
+        require(exchangeDesired != address(0) && exchangeDesired != address(this), "targetToken leads to invalid exchange.");
 
         // Swap for ETH first
         uint ethSwapped = getEthAmount(tokensSold);
-        console.log('ethSwapped: %s', ethSwapped);
 
         // Swap eth for target token
         uint tokensAcq = IExchange(exchangeDesired).getTokenAmount(ethSwapped);
-        console.log('tokensAcq: %s', tokensAcq);
+        require(tokensAcq >= minTokens, "Token amount must be greater than minTokens");
 
-        require(tokensAcq > minTokens, "Token amount must be greater than minTokens");
-            
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokensSold);
-        IExchange(exchangeDesired).ethForTokenSwap{ value: ethSwapped }(tokensAcq);
+        IExchange(exchangeDesired).ethForTokenTransfer{ value: ethSwapped }(minTokens, _msgSender());
 
         return tokensAcq; 
     }
