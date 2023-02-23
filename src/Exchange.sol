@@ -7,7 +7,6 @@ import './ERC20.sol';
 import './IERC20.sol';
 import './IFactory.sol';
 import './IExchange.sol';
-import { console } from "forge-std/console.sol";
 
 contract Exchange is ERC20 {
     address immutable tokenAddress;

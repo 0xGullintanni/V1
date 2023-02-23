@@ -7,8 +7,6 @@ import "./Context.sol";
 import "./IERC20.sol";
 import "./IERC20Metadata.sol";
 
-import { console } from "forge-std/console.sol";
-
 /**
  * @dev Implementation of the {IERC20} interface.
  *
