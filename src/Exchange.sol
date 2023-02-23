@@ -14,9 +14,9 @@ contract Exchange is ERC20 {
 
    constructor(address _tokenAddress) ERC20("UNI-V1", "UNI-V1") {
         require(_tokenAddress != address(0), "Token address cannot be 0x0");
-        require(msg.sender != address(0), "Factory address cannot be 0x0");
+        require(_msgSender() != address(0), "Factory address cannot be 0x0");
         tokenAddress = _tokenAddress;
-        factoryAddress = msg.sender;
+        factoryAddress = _msgSender();
    }
 
    function getReserves() public view returns (uint256) {
@@ -87,8 +87,8 @@ contract Exchange is ERC20 {
         uint ethAmount = getEthAmount(tokensSold);
         require(ethAmount >= minEth, "Eth amount must be greater than minEth");
 
-        IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokensSold);
-        payable(msg.sender).transfer(ethAmount);
+        IERC20(tokenAddress).transferFrom(_msgSender(), address(this), tokensSold);
+        payable(_msgSender()).transfer(ethAmount);
 
         return ethAmount;
     }
@@ -104,7 +104,7 @@ contract Exchange is ERC20 {
         uint tokensAcq = IExchange(exchangeDesired).getTokenAmount(ethSwapped);
         require(tokensAcq >= minTokens, "Token amount must be greater than minTokens");
 
-        IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokensSold);
+        IERC20(tokenAddress).transferFrom(_msgSender(), address(this), tokensSold);
         IExchange(exchangeDesired).ethForTokenTransfer{ value: ethSwapped }(minTokens, _msgSender());
 
         return tokensAcq; 
@@ -123,9 +123,9 @@ contract Exchange is ERC20 {
             // Pool does not exist, so we need to accept the ETH and the token
             IERC20 token = IERC20(tokenAddress);
             uint liquidity = address(this).balance; // for payable functions, contract balance is updated before function is called
-            require(token.balanceOf(msg.sender) >= tokensAdded, "Sender must have enough tokens to add liquidity");
-            token.transferFrom(msg.sender, address(this), tokensAdded);
-            _mint(msg.sender, liquidity);
+            require(token.balanceOf(_msgSender()) >= tokensAdded, "Sender must have enough tokens to add liquidity");
+            token.transferFrom(_msgSender(), address(this), tokensAdded);
+            _mint(_msgSender(), liquidity);
 
             return liquidity;
         } else {
@@ -134,10 +134,10 @@ contract Exchange is ERC20 {
             IERC20 token = IERC20(tokenAddress);
             uint liquidity = (msg.value * totalSupply()) / (ethBalance - msg.value);
             require(liquidity >= tokensAdded, "Token amount must be less than liquidity sent back to user as LP tokens.");
-            require(token.balanceOf(msg.sender) >= tokensAdded, "Sender must have enough tokens to add liquidity");
-            token.transferFrom(msg.sender, address(this), tokensAdded);
+            require(token.balanceOf(_msgSender()) >= tokensAdded, "Sender must have enough tokens to add liquidity");
+            token.transferFrom(_msgSender(), address(this), tokensAdded);
 
-            _mint(msg.sender, liquidity);
+            _mint(_msgSender(), liquidity);
             return liquidity;
         }
     }
@@ -150,10 +150,10 @@ contract Exchange is ERC20 {
         uint tokenAmt = (getReserves() * tokenAmount) / totalSupply();
         // Invariant maintenance => y / x = dy / dx
         require((getReserves() / address(this).balance) == ((getReserves() + tokenAmt) / (address(this).balance + ethAmount)), "Invariant must be maintained");
-        _burn(msg.sender, tokenAmount);
+        _burn(_msgSender(), tokenAmount);
         
-        payable(msg.sender).transfer(ethAmount);
-        IERC20(tokenAddress).transfer(msg.sender, tokenAmt);
+        payable(_msgSender()).transfer(ethAmount);
+        IERC20(tokenAddress).transfer(_msgSender(), tokenAmt);
 
         return (ethAmount, tokenAmount);
     }
