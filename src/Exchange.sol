@@ -28,9 +28,6 @@ contract Exchange is ERC20 {
        // return the amount of tokens to be expected for a given swap
        require(ethSold > 0, "Eth sold must be greater than 0");
        uint outputReserve = getReserves();
-       console.log('ethSold: %s', ethSold);
-       console.log('address(this).balance: %s', address(this).balance);
-       console.log('address(this).balance - ethSold: %s', address(this).balance - ethSold);
        return getAmount(ethSold, address(this).balance - ethSold, outputReserve);
    }
 
